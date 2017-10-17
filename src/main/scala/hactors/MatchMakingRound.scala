@@ -12,7 +12,7 @@ class MatchMakingRound(matchmaking: ActorRef) extends Actor {
 
   def receive = {
     case MatchMakingRound.PlayRound(decks) => playRound(decks)
-    case _                                      => log.info("huh???")
+    case _                                 => log.info("huh???")
   }
 
   private def playRound(decks: List[(ActorRef, Int, Int)]) = {

@@ -13,14 +13,14 @@ class DeckBattle extends Actor {
   private val random = new Random(1)
 
   def receive = {
-    case DeckBattle.Battle(first, second) => deckBattle(first, second)
+    case DeckBattle.Battle(first, second) => battleImpl(first, second)
     case _                                => log.info(s"unhandled msg for $self")
   }
 
-  def deckBattle(first: (ActorRef, Int),
+  def battleImpl(first: (ActorRef, Int),
                  second: (ActorRef, Int)): Unit = {
 
-    if (random.nextInt(first._2 + second._2) > first._2) {
+    if (random.nextInt(first._2 + second._2) >= first._2) {
       second._1 ! Win
       first._1 ! Loss
     }

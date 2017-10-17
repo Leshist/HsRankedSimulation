@@ -13,36 +13,37 @@ import scala.concurrent.duration._
 class MatchMaking(roundsToPlay: Int,
                   season: ActorRef,
                   decksAmount: Int) extends Actor {
+  private val name = "MM"
   private val log = Logging(context.system, this)
   private val system = context.system
   private var roundsPlayed = 0
-  private val queuedForMm = new ListBuffer[(ActorRef, Int, Int)]
+  private val queuedForRound = new ListBuffer[(ActorRef, Int, Int)]
   private val roundPlayer = makeRoundMaker()
   private val queueFulnessCoef = 0.90
-  private val logProgressFrequency = roundsToPlay / 20
+  private val logProgressFrequency = if (roundsToPlay > 20) roundsToPlay / 20 else 1
 
   def receive = {
     case MatchMaking.QueueForAGame(ref, score, strength) => addToQueue(ref, score, strength)
     case MatchMaking.RequestRound                        => requestRound()
     case FinishedRound                                   => handleRoundsEnd()
-    case _                                               => log.info(s"unhandled msg for $self")
+    case _                                               => log.info(s"unhandled msg for $name")
   }
 
-  def seasonEndedState: Receive = {
-    case _ =>
-      val originalSender = sender()
-      originalSender ! SeasonEnded
-  }
-
-  def addToQueue(deck: ActorRef, score: Int, strength: Int): Unit = queuedForMm += Tuple3(deck, score, strength)
+  def addToQueue(deck: ActorRef, score: Int, strength: Int): Unit = queuedForRound += Tuple3(deck, score, strength)
 
   def requestRound(): Unit = {
-    if (queuedForMm.length.toFloat / decksAmount > queueFulnessCoef) {
-      roundPlayer ! PlayRound(queuedForMm.toList.distinct)
-      queuedForMm.clear()
+    val queued: ListBuffer[(ActorRef, Int, Int)] = queuedForRound.clone()
+    val percentageOfAllQueued = queued.length.toFloat / decksAmount
+
+    if (percentageOfAllQueued >= queueFulnessCoef) {
+      roundPlayer ! PlayRound(queued.toList.distinct)
+      val queuedAfterRoundPhase = queuedForRound -- queued
+      queuedForRound.clear()
+      queuedForRound ++ queuedAfterRoundPhase
     }
+
     else {
-      context.system.scheduler.scheduleOnce(5.milliseconds, self, RequestRound)
+      context.system.scheduler.scheduleOnce(500.milliseconds, self, RequestRound)
     }
 
   }
@@ -51,10 +52,12 @@ class MatchMaking(roundsToPlay: Int,
   def handleRoundsEnd(): Unit = {
     roundsPlayed += 1
 
-    if (roundsPlayed == roundsToPlay)
+    if (roundsPlayed == roundsToPlay) {
       handleSeasonEnd()
-    else
+    }
+    else {
       requestRound()
+    }
 
     if (roundsPlayed % logProgressFrequency == 0)
       logProgress()
@@ -62,8 +65,7 @@ class MatchMaking(roundsToPlay: Int,
   }
 
   def handleSeasonEnd(): Unit = {
-    context.become(seasonEndedState)
-    season ! SeasonEnded
+    system.scheduler.scheduleOnce(5.seconds, season, SeasonEnded)
   }
 
   def logProgress(): Unit = log.info(s"playing matchmaking... ${((roundsPlayed.toFloat/roundsToPlay)*100).toInt}% done")

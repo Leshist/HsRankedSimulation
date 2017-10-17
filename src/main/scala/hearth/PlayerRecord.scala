@@ -1,5 +1,7 @@
 package hearth
 
+import hearth.PlayerRecord.PlayerRecordState
+
 class PlayerRecord {
   private var winStreak = 0
   private var _stars = 0
@@ -8,35 +10,50 @@ class PlayerRecord {
   private val checkPointStars = List(20,15,10,5,0).map(starsToReachRank)
   private lazy val gamesToReachLegend = gamesPlayed
 
-  def games: Int = gamesPlayed
-  def wins: Int = gamesWon
-  def loses: Int = gamesPlayed - gamesWon
-  def rank: Int = calculateRankFromStars(_stars)
-  def stars: Int = _stars
-  def gamesToLegendOrZero: Int = if (hasReachedLegend) gamesToReachLegend else 0
+  def getGamesPlayed: Int = gamesPlayed
+  def getGamesWon: Int = gamesWon
+  def getGamesLost: Int = gamesPlayed - gamesWon
+  def getRank: Int = calculateRankFromStars(_stars)
+  def getStars: Int = _stars
+  def getGamesToLegendOrZero: Int = if (hasReachedLegend) gamesToReachLegend else 0
+  def getState: PlayerRecordState = PlayerRecordState(getGamesPlayed,
+                                                      getGamesWon,
+                                                      getGamesLost,
+                                                      winStreak,
+                                                      getStars)
 
   def lose(): Unit = {
-    if (canLoseStars) _stars -= 1
+    if (canLoseStars) {
+      _stars -= 1
+    }
 
     winStreak = 0
     gamesPlayed += 1
   }
 
   def win(): Unit = {
-    if (winStreak >= 2 && rank >= 5) _stars += 2
-    else _stars += 1
+    if (winStreak >= 2 && getRank >= 5){
+      _stars += 2
+    }
+
+    else {
+      _stars += 1
+    }
 
     gamesPlayed += 1
     gamesWon += 1
     winStreak += 1
-    if (hasReachedLegend) gamesToReachLegend
+
+    if (hasReachedLegend) {
+      gamesToReachLegend
+    }
   }
 
   private def starsToReachRank(r: Int): Int = r.to(25).toList.tail.map(x => starsInRank(x)).sum
 
-  private def canLoseStars: Boolean = rank <= 20 && !checkPointStars.contains(_stars - 1)
+  private def canLoseStars: Boolean = getRank <= 20 && !checkPointStars.contains(_stars - 1)
 
-  private def hasReachedLegend: Boolean = rank == 0
+  private def hasReachedLegend: Boolean = getRank == 0
 
   private def starsInRank(r: Int): Int = r.toDouble / 5 match {
     case x if x > 4.0 => 2
@@ -57,4 +74,12 @@ class PlayerRecord {
     }
     findRank(starsOnRanks, s)
   }
+}
+
+object PlayerRecord {
+  case class PlayerRecordState(gamesPlayed: Int,
+                               gamesWon: Int,
+                               gamesLost: Int,
+                               winstreak: Int,
+                               stars: Int)
 }
